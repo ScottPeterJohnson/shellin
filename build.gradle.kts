@@ -47,7 +47,7 @@ bintray {
 
 	val pkgOps = closureOf<BintrayExtension.PackageConfig> {
 		repo = "generic"
-		name = "shelling"
+		name = "shellin"
 		vcsUrl = "https://github.com/ScottPeterJohnson/shellin.git"
 		version(closureOf<BintrayExtension.VersionConfig> {
 			name = project.version as String?
