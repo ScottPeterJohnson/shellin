@@ -1,6 +1,5 @@
-[ ![Download](https://api.bintray.com/packages/scottpjohnson/generic/kdbgen/images/download.svg) ](https://bintray.com/scottpjohnson/generic/kdbgen/_latestVersion)
+[ ![Download](https://api.bintray.com/packages/scottpjohnson/generic/shellin/images/download.svg) ](https://bintray.com/scottpjohnson/generic/kdbgen/_latestVersion)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub release](https://img.shields.io/github/release/qubyte/rubidium.svg)]()
  
 shellin is a work in progress utility library for writing shell scripts with Kotlin using [kscript](https://github.com/holgerbrandl/kscript).
 It will work in any JVM environment, however.
