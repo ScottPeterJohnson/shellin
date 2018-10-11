@@ -94,7 +94,7 @@ data class ProcessLaunchTemplate internal constructor(
 	/**
 	 * Print a useful description of this command to stdout.
 	 */
-	fun show(){
+	fun show() : ProcessLaunchTemplate {
 		println("$ " + renderCommand())
 		if(workingDirectory != null){
 			println("$ With working directory: $workingDirectory")
@@ -105,6 +105,7 @@ data class ProcessLaunchTemplate internal constructor(
 					if(value.length > 50) value.take(50) + "..." else value
 				} })
 		}
+		return this
 	}
 
 	/**
