@@ -183,7 +183,7 @@ data class ProcessLaunchTemplate internal constructor(
 
 	internal fun buildCommandLine() : CommandLine {
 		val commandLine = CommandLine.parse(command)
-		for(arg in arguments){ commandLine.addArgument(arg) }
+		for(arg in arguments){ commandLine.addArgument(arg, false) }
 		return commandLine
 	}
 }
