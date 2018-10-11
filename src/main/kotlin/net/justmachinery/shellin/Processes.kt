@@ -3,18 +3,50 @@ package net.justmachinery.shellin
 import org.apache.commons.exec.*
 import java.io.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import javax.annotation.CheckReturnValue
 
 
 /**
- * Create a launch template based off command, which can either be the full command line or just the program name to execute.
+ * Create a launch template.
  * This implementation mostly uses Apache Commons Exec for correctness: https://commons.apache.org/proper/commons-exec/index.html
+ * @param command Either the full commandline command, or just the program to invoke.
+ * @param extraArguments Arguments to be appended to the end of the command, individually escaped.
+ * Don't try to pass "--flag value" for instance; pass "--flag", "value".
+ * @param cb Builder DSL for specifying extra options.
  */
 @CheckReturnValue
-fun command(command : String) : ProcessLaunchTemplate {
-	return ProcessLaunchTemplate(command)
+fun command(
+		command : String,
+		vararg extraArguments : String,
+		cb : (ProcessLaunchTemplate.Builder.()->Unit)? = null
+) : ProcessLaunchTemplate {
+	val builder = ProcessLaunchTemplate.Builder(ProcessLaunchTemplate(command))
+	for(argument in extraArguments){
+		builder.argument(argument)
+	}
+	if(cb != null) {
+		cb(builder)
+	}
+	return builder.build()
 }
 
+/**
+ * Run a bash script.
+ * @param script The script to run.
+ * @param saneErrorHandling See https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+ * @param cb The same builder as "command". Any arguments will be passed as arguments to the bash script.
+ */
+fun bash(
+		script : String,
+		saneErrorHandling : Boolean = true,
+		printCommands : Boolean = false,
+		cb : (ProcessLaunchTemplate.Builder.()->Unit)? = null
+) : ProcessLaunchTemplate {
+	val printCommandOption = if(printCommands) "x" else ""
+	val finalScript = if(saneErrorHandling) "set -eu${printCommandOption}o pipefail\n$script" else script
+	return command("bash", "-c", finalScript, cb = cb)
+}
 /**
  * An immutable description of a process to launch.
  */
@@ -26,13 +58,8 @@ data class ProcessLaunchTemplate internal constructor(
 	private var overrideEnvironmentVariables : Map<String,String>? = null,
 	private var stdin : InputStream? = null
 ){
-	operator fun invoke(cb : Builder.()->Int) : ProcessLaunchTemplate {
-		val modified = copy()
-		cb(Builder(modified))
-		return this
-	}
-
-	class Builder(private val modified : ProcessLaunchTemplate) {
+	class Builder internal constructor(private val modified : ProcessLaunchTemplate) {
+		internal fun build() : ProcessLaunchTemplate { return modified }
 		fun argument(argument : String){
 			modified.arguments += argument
 		}
@@ -65,22 +92,50 @@ data class ProcessLaunchTemplate internal constructor(
 	}
 
 	/**
-	 * Start and wait synchronously for program to finish.
+	 * Print a useful description of this command to stdout.
+	 */
+	fun show(){
+		println("$ " + renderCommand())
+		if(workingDirectory != null){
+			println("$ With working directory: $workingDirectory")
+		}
+		if(overrideEnvironmentVariables != null){
+			println("$ With custom environment: " + overrideEnvironmentVariables!!.entries.joinToString(" "){
+				it.key + "=" + it.value.let { value ->
+					if(value.length > 50) value.take(50) + "..." else value
+				} })
+		}
+	}
+
+	/**
+	 * Start and wait synchronously for program to finish. Will throw an ExecutionException on unacceptable exit codes.
 	 */
 	fun run() : Int {
 		return start().exitCode.get()
 	}
 
 	/**
+	 * As "run", but swallows execution exceptions.
+	 */
+	fun runIgnoringErrors(){
+		try {
+			start().exitCode.get()
+		} catch(e : ExecutionException){
+			/* do nothing */
+		}
+	}
+
+	/**
 	 * Start asynchronously. Uses the supplied output and error streams, otherwise uses System.out and System.err.
 	 * The returned process handle gives a reference to the spawned process and a future that can be used to get the exit code.
+	 * Unacceptable exit codes will result in an ExecutionException being thrown.
 	 */
 	@CheckReturnValue
 	fun start(stdout : OutputStream? = System.out, stderr : OutputStream? = System.err) : ProcessHandle {
-		val commandLine = CommandLine.parse(command)
-		for(arg in arguments){ commandLine.addArgument(arg) }
+		val commandLine = buildCommandLine()
 
 		val executor = CaptureExecutor()
+		executor.processDestroyer = processDestroyer
 		executor.workingDirectory = workingDirectory
 		exitValues?.let { executor.setExitValues(it.toIntArray()) }
 
@@ -118,6 +173,17 @@ data class ProcessLaunchTemplate internal constructor(
 				stdout = stdoutIn
 		)
 	}
+
+	fun renderCommand() : String {
+		val commandLine = buildCommandLine()
+		return "${commandLine.executable} ${commandLine.arguments.joinToString(" ")}"
+	}
+
+	internal fun buildCommandLine() : CommandLine {
+		val commandLine = CommandLine.parse(command)
+		for(arg in arguments){ commandLine.addArgument(arg) }
+		return commandLine
+	}
 }
 
 interface ProcessHandle {
@@ -134,7 +200,7 @@ class OutputProcessHandle internal constructor(
 		processHandle : ProcessHandle,
 		val stdout : PipedInputStream
 ) : ProcessHandle by processHandle {
-	val outputString : CompletableFuture<String> by lazy { processHandle.exitCode.thenApply { stdout.reader().readText() } }
+	val string : CompletableFuture<String> by lazy { processHandle.exitCode.thenApply { stdout.reader().readText() } }
 }
 
 private class CaptureExecutor : DefaultExecutor() {
@@ -144,3 +210,5 @@ private class CaptureExecutor : DefaultExecutor() {
 		return launchedProcess!!
 	}
 }
+
+private val processDestroyer = ShutdownHookProcessDestroyer()
