@@ -135,7 +135,8 @@ data class ProcessLaunchTemplate internal constructor(
 	fun start(stdout : OutputStream? = System.out, stderr : OutputStream? = System.err) : ProcessHandle {
 		val commandLine = buildCommandLine()
 
-		val executor = CaptureExecutor()
+		val launchedProcess = CompletableFuture<Process>()
+		val executor = CaptureExecutor(launchedProcess)
 		executor.processDestroyer = processDestroyer
 		executor.workingDirectory = workingDirectory
 		exitValues?.let { executor.setExitValues(it.toIntArray()) }
@@ -155,7 +156,7 @@ data class ProcessLaunchTemplate internal constructor(
 
 		})
 		return ProcessHandleImpl(
-				process = executor.launchedProcess!!,
+				processFuture = launchedProcess,
 				exitCode = future
 		)
 	}
@@ -193,9 +194,12 @@ interface ProcessHandle {
 }
 
 internal data class ProcessHandleImpl(
-		override val process : Process,
+		private val processFuture : CompletableFuture<Process>,
 		override val exitCode : CompletableFuture<Int>
-) : ProcessHandle
+) : ProcessHandle {
+	override val process
+		get() = processFuture.get()!!
+}
 
 class OutputProcessHandle internal constructor(
 		processHandle : ProcessHandle,
@@ -204,11 +208,16 @@ class OutputProcessHandle internal constructor(
 	val string : CompletableFuture<String> by lazy { processHandle.exitCode.thenApply { stdout.reader().readText() } }
 }
 
-private class CaptureExecutor : DefaultExecutor() {
-	var launchedProcess : Process? = null
+private class CaptureExecutor(val launchedProcess : CompletableFuture<Process>) : DefaultExecutor() {
 	override fun launch(command: CommandLine?, env: MutableMap<String, String>?, dir: File?): java.lang.Process {
-		launchedProcess = super.launch(command, env, dir)
-		return launchedProcess!!
+		try {
+			val process = super.launch(command, env, dir)
+			launchedProcess.complete(process)
+			return process
+		} catch(e : Exception){
+			launchedProcess.completeExceptionally(e)
+			throw e
+		}
 	}
 }
 
