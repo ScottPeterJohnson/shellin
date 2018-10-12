@@ -2,6 +2,8 @@ package net.justmachinery.shellin
 
 import org.apache.commons.exec.*
 import java.io.*
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import javax.annotation.CheckReturnValue
@@ -16,12 +18,12 @@ import javax.annotation.CheckReturnValue
  * @param cb Builder DSL for specifying extra options.
  */
 @CheckReturnValue
-fun command(
+fun ShellContext.command(
 		command : String,
 		vararg extraArguments : String,
 		cb : (ProcessLaunchTemplate.Builder.()->Unit)? = null
 ) : ProcessLaunchTemplate {
-	val builder = ProcessLaunchTemplate.Builder(ProcessLaunchTemplate(command))
+	val builder = ProcessLaunchTemplate.Builder(ProcessLaunchTemplate(this, command, workingDirectory = workingDirectory))
 	for(argument in extraArguments){
 		builder.argument(argument)
 	}
@@ -37,7 +39,7 @@ fun command(
  * @param saneErrorHandling See https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
  * @param cb The same builder as "command". Any arguments will be passed as arguments to the bash script.
  */
-fun bash(
+fun ShellContext.bash(
 		script : String,
 		saneErrorHandling : Boolean = true,
 		printCommands : Boolean = false,
@@ -51,9 +53,10 @@ fun bash(
  * An immutable description of a process to launch.
  */
 data class ProcessLaunchTemplate internal constructor(
+    private var context : ShellContext,
 	private var command : String,
 	private var arguments : List<String> = listOf(),
-	private var workingDirectory : File? = null,
+	private var workingDirectory : Path,
 	private var exitValues : List<Int>? = null,
 	private var overrideEnvironmentVariables : Map<String,String>? = null,
 	private var stdin : InputStream? = null
@@ -66,11 +69,11 @@ data class ProcessLaunchTemplate internal constructor(
 		fun arguments(vararg arguments : String){
 			modified.arguments += arguments
 		}
-		fun workingDirectory(file : File){
+		fun workingDirectory(file : Path){
 			modified.workingDirectory = file
 		}
 		fun workingDirectory(path : String){
-			modified.workingDirectory = File(path)
+			modified.workingDirectory = Paths.get(path)
 		}
 
 		/**
@@ -96,7 +99,7 @@ data class ProcessLaunchTemplate internal constructor(
 	 */
 	fun show() : ProcessLaunchTemplate {
 		println("$ " + renderCommand())
-		if(workingDirectory != null){
+		if(workingDirectory != context.workingDirectory){
 			println("$ With working directory: $workingDirectory")
 		}
 		if(overrideEnvironmentVariables != null){
@@ -105,7 +108,7 @@ data class ProcessLaunchTemplate internal constructor(
 					if(value.length > 50) value.take(50) + "..." else value
 				} })
 		}
-		return this
+		return this@ProcessLaunchTemplate
 	}
 
 	/**
@@ -133,12 +136,15 @@ data class ProcessLaunchTemplate internal constructor(
 	 */
 	@CheckReturnValue
 	fun start(stdout : OutputStream? = System.out, stderr : OutputStream? = System.err) : ProcessHandle {
+        if(context.printCommands){
+            show()
+        }
 		val commandLine = buildCommandLine()
 
 		val launchedProcess = CompletableFuture<Process>()
 		val executor = CaptureExecutor(launchedProcess)
 		executor.processDestroyer = processDestroyer
-		executor.workingDirectory = workingDirectory
+		executor.workingDirectory = workingDirectory.toFile()
 		exitValues?.let { executor.setExitValues(it.toIntArray()) }
 
 		executor.streamHandler = PumpStreamHandler(stdout, stderr, stdin)
@@ -181,7 +187,7 @@ data class ProcessLaunchTemplate internal constructor(
 		return "${commandLine.executable} ${commandLine.arguments.joinToString(" ")}"
 	}
 
-	internal fun buildCommandLine() : CommandLine {
+	private fun buildCommandLine() : CommandLine {
 		val commandLine = CommandLine.parse(command)
 		for(arg in arguments){ commandLine.addArgument(arg, false) }
 		return commandLine
