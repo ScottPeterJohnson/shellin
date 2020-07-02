@@ -7,8 +7,9 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.Paths
 
+@ShellinDsl
 data class ShellinProcessConfiguration internal constructor(
-    internal val context : Shellin
+    internal val context : ShellinReadonly
 ){
     internal var arguments : MutableList<String> = mutableListOf()
     operator fun String.unaryPlus() {
@@ -25,44 +26,44 @@ data class ShellinProcessConfiguration internal constructor(
     }
 
 
-    val workingDirectory = ShellinConfig { context.workingDirectory.value() }
+    var workingDirectory by ShellinConfig { context.workingDirectory }
     fun workingDirectory(path : String) {
-        workingDirectory(Paths.get(path))
+        workingDirectory = Paths.get(path)
     }
 
     /**
      * Whether the child process will be killed as part of a shutdown hook when the VM exits
      */
-    val exitWithJava = ShellinConfig { true }
+    var exitWithJava by ShellinConfig { true }
 
     /**
      * A list of exit values that will not throw an exception
      */
-    val exitValues = ShellinConfig { listOf(0) }
+    var exitValues by ShellinConfig { listOf(0) }
 
     /**
      * If supplied, a list of environment variables that will replace Java's environment variables
      */
-    val overrideEnvironmentVariables = ShellinConfig<Map<String,String>?> { null }
+    var overrideEnvironmentVariables by ShellinConfig<Map<String,String>?> { null }
 
     /**
      * stdin for launched process.
      * Note that the input stream given will be closed.
      */
-    val stdin = ShellinConfig<Source?> { null }
-    fun stdin(input : InputStream) { stdin(input.source()) }
+    var stdin by ShellinConfig<Source?> { null }
+    fun stdin(input : InputStream) { stdin = input.source() }
 
     /**
      * stdout for launched process. Note that the sink given will be closed when the process exits.
      */
-    val stdout = ShellinConfig { context.defaultStdout.value()() }
-    fun stdout(output : OutputStream) { stdout(output.sink()) }
+    var stdout by ShellinConfig { context.defaultStdout(this) }
+    fun stdout(output : OutputStream) { stdout = output.sink() }
 
     /**
      * See [stdout] but for stderr
      */
-    val stderr = ShellinConfig { context.defaultStderr.value()() }
-    fun stderr(output : OutputStream) { stderr(output.sink()) }
+    var stderr by ShellinConfig { context.defaultStderr(this) }
+    fun stderr(output : OutputStream) { stderr = output.sink() }
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -71,7 +72,7 @@ data class ShellinProcessConfiguration internal constructor(
         if(workingDirectory != context.workingDirectory){
             sb.appendln("$ With working directory: $workingDirectory")
         }
-        val override = overrideEnvironmentVariables.value()
+        val override = overrideEnvironmentVariables
         if(override != null){
             sb.appendln("$ With custom environment: " + override.entries.joinToString(" "){
                 it.key + "=" + it.value.let { value ->

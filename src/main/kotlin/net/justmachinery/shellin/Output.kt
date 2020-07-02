@@ -1,20 +1,20 @@
 package net.justmachinery.shellin
 
 import okio.Pipe
-import okio.Sink
 import okio.Source
 import okio.buffer
+import kotlin.reflect.KMutableProperty1
 
-inline fun Shellin.collectStdout(cb: ()->Unit) = collectPipe(defaultStdout, cb)
-inline fun Shellin.collectStderr(cb: ()->Unit) = collectPipe(defaultStderr, cb)
+inline fun <T : ShellinReadonly> T.collectStdout(crossinline cb: ShellinWriteable.()->Unit) = collectPipe(ShellinWriteable::defaultStdout, cb)
+inline fun <T : ShellinReadonly> T.collectStderr(crossinline cb: ShellinWriteable.()->Unit) = collectPipe(ShellinWriteable::defaultStderr, cb)
 
-inline fun Shellin.collectPipe(configOut : ShellinConfig<()->Sink?>, cb : ()->Unit) : ProgramOutput {
-    val output = Pipe(Long.MAX_VALUE)
-    val oldValue = configOut.lazyValue
-    configOut.lazyValue = lazyOf { output.sink }
-    cb()
-    configOut.lazyValue = oldValue
-    return ProgramOutput(output.source)
+inline fun <T : ShellinReadonly> T.collectPipe(prop : KMutableProperty1<ShellinWriteable, ShellinSinkProducer>, crossinline cb : ShellinWriteable.()->Unit) : ProgramOutput {
+    return this.new {
+        val output = Pipe(Long.MAX_VALUE)
+        prop.set(this) { output.sink }
+        this.cb()
+        ProgramOutput(output.source)
+    }
 }
 
 

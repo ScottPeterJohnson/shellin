@@ -1,10 +1,8 @@
+package net.justmachinery.shellin
+
 import io.kotlintest.shouldBe
 import io.kotlintest.specs.StringSpec
-import net.justmachinery.shellin.Shellin
-import net.justmachinery.shellin.command
-import net.justmachinery.shellin.logStdout
 import org.awaitility.Awaitility
-import org.hamcrest.Matcher
 import org.hamcrest.core.IsEqual
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
@@ -14,11 +12,11 @@ import kotlin.random.Random
 
 class LoggingTest : StringSpec() {
     init {
-        val shell = Shellin()
+        val shell = shellin {}
         "simple logging".config() {
             val logs = mutableListOf<String>()
-            shell {
-                logStdout { logs.add(it.toString()) }
+            shell.new {
+                logStdout { { logs.add(it.toString()) } }
 
                 command("echo", "foo").waitFor()
                 command("echo", "foo\nbar\nbaz").waitFor()
@@ -40,10 +38,12 @@ class LoggingTest : StringSpec() {
                 }
 
                 val logs = Collections.synchronizedList(mutableListOf<String>())
-                shell {
+                shell.new {
                     logStdout {
-                        val str = it.toString()
-                        logs.add(str)
+                        {
+                            val str = it.toString()
+                            logs.add(str)
+                        }
                     }
                     command("cat -"){
                         stdin(bits.inputStream())

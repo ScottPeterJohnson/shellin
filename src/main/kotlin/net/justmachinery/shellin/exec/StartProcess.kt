@@ -8,24 +8,24 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 
 internal fun ShellinProcessConfiguration.start() : ShellinProcess {
-    if(context.logCommands.value()){
+    if(context.logCommands){
         Shellin.logger.debug { this.toString() }
     }
 
-    val override = overrideEnvironmentVariables.value()
+    val override = overrideEnvironmentVariables
     val process = if(override != null) NuProcessBuilder(arguments, override) else NuProcessBuilder(arguments)
 
-    val handler = ShellinNuHandler(context, stdin.value(), stdout.value(), stderr.value())
+    val handler = ShellinNuHandler(context, stdin, stdout, stderr)
     val handle = ShellinProcess(
         handler = handler,
-        acceptableExitCodes = exitValues.value()
+        acceptableExitCodes = exitValues
     )
     val launched = process
-        .apply { setCwd(workingDirectory.value()) }
+        .apply { setCwd(workingDirectory) }
         .apply { setProcessListener(handler)}
         .start()
     Shellin.logger.debug { "Launched process ${launched.pid}" }
-    if(exitWithJava.value()){
+    if(exitWithJava){
         processStopper.value.addProcess(launched)
         handle.exitCode.whenComplete { _, _ ->
             processStopper.value.removeProcess(launched)

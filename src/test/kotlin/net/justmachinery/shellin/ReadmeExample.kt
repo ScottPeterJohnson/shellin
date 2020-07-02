@@ -1,9 +1,8 @@
+package net.justmachinery.shellin
+
 import io.kotlintest.shouldBe
-import net.justmachinery.shellin.Shellin
-import net.justmachinery.shellin.bash
-import net.justmachinery.shellin.collectStdout
-import net.justmachinery.shellin.command
 import net.justmachinery.shellin.exec.InvalidExitCodeException
+import java.nio.file.Files
 
 fun main(){
     readmeExample()
@@ -11,13 +10,18 @@ fun main(){
 
 internal fun readmeExample(){
     //This code is used in the readme; kept here to make sure it compiles.
-    val shell = Shellin().apply {
+    val shell = shellin {
         //You can configure some default behaviors for commands run here
-        logCommands(true)
+        logCommands = true
     }
-    shell {
-        //Synchronously run and wait for a command.
-        command("echo Hello world from Shellin!").waitFor()
+
+    //Synchronously run and wait for a command.
+    shell.command("echo Hello world from Shellin!").waitFor()
+
+    //If we want to do a bunch of commands or change the default shell state:
+    shell.new {
+        //From here we can change the working directory without affecting the default configuration
+        workingDirectory = Files.createTempDirectory("shellin")
 
         //Commands will fail by default if give a nonzero exit code
         try {
@@ -29,7 +33,7 @@ internal fun readmeExample(){
         command("echo"){
             +"You can add arguments and other configuration for a command in a block like this"
             //This discards stderr, for example
-            stderr(null)
+            stderr = null
         }
 
         //It's also easy to collect output:

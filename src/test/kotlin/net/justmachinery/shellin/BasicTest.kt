@@ -1,26 +1,24 @@
+package net.justmachinery.shellin
+
 import io.kotlintest.matchers.boolean.shouldBeTrue
 import io.kotlintest.should
 import io.kotlintest.shouldBe
 import io.kotlintest.specs.StringSpec
-import net.justmachinery.shellin.*
 import net.justmachinery.shellin.exec.InputPumper
-import net.justmachinery.shellin.exec.InvalidExitCodeException
 import java.io.InputStream
 import kotlin.random.Random
 
 class BasicTest : StringSpec() {
     init {
-        val shell = Shellin()
+        val shell = shellin {}
         "can run programs" {
-            shell {
-                val cmd = command("echo", "foo")
-                cmd.successful().get().shouldBeTrue()
-                bash("exit 1"){ exitValues(listOf(1)) }.successful().get().shouldBeTrue()
-            }
+            val cmd = shell.command("echo", "foo")
+            cmd.successful().get().shouldBeTrue()
+            shell.bash("exit 1"){ exitValues = listOf(1) }.successful().get().shouldBeTrue()
         }
 
         "can collect output" {
-            shell {
+            shell.new {
                 repeat(1000){
                     collectStdout {
                         command("echo", "foo")
@@ -34,7 +32,7 @@ class BasicTest : StringSpec() {
             }
         }
         "can read stdin" {
-            shell {
+            shell.new {
                 collectStdout {
                     bash("read line; echo done"){
                         stdin("foo bar\n".byteInputStream())
@@ -53,7 +51,7 @@ class BasicTest : StringSpec() {
             }
         }
         "can collect stderr" {
-            shell {
+            shell.new {
                 repeat(1000){
                     collectStderr {
                         bash("echo foo 1>&2")
@@ -70,7 +68,7 @@ class BasicTest : StringSpec() {
             }
         }
         "thou shalt not read all stdin at once" {
-            shell {
+            shell.new {
                 val qs = InfiniteStreamOfQLines()
                 val proc = bash("sleep 1; read; sleep 1"){
                     stdin(qs)

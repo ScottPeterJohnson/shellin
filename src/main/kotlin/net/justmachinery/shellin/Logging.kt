@@ -7,25 +7,48 @@ import okio.Timeout
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 
-
-fun Shellin.logStdout(
-    doLog : (CharSequence)->Unit
+typealias LineLogger = (CharSequence)->Unit
+typealias LoggerProducer = (ShellinProcessConfiguration) -> LineLogger
+fun ShellinWriteable.logStdout(
+    doLog : LoggerProducer
 ){
-    defaultStdout {
+    defaultStdout = {
+        val logger = doLog(it)
         NewlineDelimiterSink {
-            doLog(it)
+            logger(it)
         }
     }
 }
 
-fun Shellin.logStderr(
-    doLog : (CharSequence)->Unit
+fun ShellinWriteable.logStderr(
+    doLog : LoggerProducer
 ){
-    defaultStderr {
+    defaultStderr = {
+        val logger = doLog(it)
+        NewlineDelimiterSink {
+            logger(it)
+        }
+    }
+}
+
+fun ShellinProcessConfiguration.logStdout(
+    doLog : LineLogger
+){
+    stdout = (
         NewlineDelimiterSink {
             doLog(it)
         }
-    }
+    )
+}
+
+fun ShellinProcessConfiguration.logStderr(
+    doLog : LineLogger
+){
+    stderr = (
+        NewlineDelimiterSink {
+            doLog(it)
+        }
+    )
 }
 
 class NewlineDelimiterSink(
@@ -105,3 +128,6 @@ class NewlineDelimiterSink(
 }
 
 
+internal class Shellin {
+    companion object : KLogging()
+}

@@ -3,20 +3,19 @@ package net.justmachinery.shellin.exec
 import com.zaxxer.nuprocess.NuAbstractProcessHandler
 import com.zaxxer.nuprocess.NuProcess
 import mu.KLogging
-import net.justmachinery.shellin.Shellin
+import net.justmachinery.shellin.ShellinReadonly
 import okio.Buffer
 import okio.Sink
 import okio.Source
 import java.lang.IllegalStateException
 import java.nio.ByteBuffer
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Process handler for shuttling data to/from a nuprocess
  */
 internal class ShellinNuHandler(
-    private val context : Shellin,
+    private val context : ShellinReadonly,
     stdin: Source?,
     stdout: Sink?,
     stderr: Sink?
@@ -25,7 +24,7 @@ internal class ShellinNuHandler(
 
     private val inPumper = stdin?.let {
         InputPumper(
-            pumperPool = context.executorService.value(),
+            pumperPool = context.executorService,
             input = it,
             onInputReady = {
                 nuProcess.wantWriteIfPossible()
@@ -37,13 +36,13 @@ internal class ShellinNuHandler(
     }
     private val outPumper = stdout?.let {
         OutputPumper(
-            context.executorService.value(),
+            context.executorService,
             it
         )
     }
     private val errPumper = stderr?.let {
         OutputPumper(
-            context.executorService.value(),
+            context.executorService,
             it
         )
     }
