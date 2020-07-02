@@ -11,7 +11,7 @@ import java.nio.file.Paths
 data class ShellinProcessConfiguration internal constructor(
     internal val context : ShellinReadonly
 ){
-    internal var arguments : MutableList<String> = mutableListOf()
+    var arguments : MutableList<String> = mutableListOf()
     operator fun String.unaryPlus() {
         argument(this)
     }
@@ -34,23 +34,23 @@ data class ShellinProcessConfiguration internal constructor(
     /**
      * Whether the child process will be killed as part of a shutdown hook when the VM exits
      */
-    var exitWithJava by ShellinConfig { true }
+    var exitWithJava = true
 
     /**
      * A list of exit values that will not throw an exception
      */
-    var exitValues by ShellinConfig { listOf(0) }
+    var exitValues = listOf(0)
 
     /**
      * If supplied, a list of environment variables that will replace Java's environment variables
      */
-    var overrideEnvironmentVariables by ShellinConfig<Map<String,String>?> { null }
+    var overrideEnvironmentVariables :  Map<String,String>? = null
 
     /**
      * stdin for launched process.
      * Note that the input stream given will be closed.
      */
-    var stdin by ShellinConfig<Source?> { null }
+    var stdin : Source? = null
     fun stdin(input : InputStream) { stdin = input.source() }
 
     /**
