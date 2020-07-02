@@ -1,0 +1,118 @@
+package net.justmachinery.shellin.exec
+
+import com.zaxxer.nuprocess.NuAbstractProcessHandler
+import com.zaxxer.nuprocess.NuProcess
+import mu.KLogging
+import net.justmachinery.shellin.Shellin
+import okio.Buffer
+import okio.Sink
+import okio.Source
+import java.lang.IllegalStateException
+import java.nio.ByteBuffer
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * Process handler for shuttling data to/from a nuprocess
+ */
+internal class ShellinNuHandler(
+    private val context : Shellin,
+    stdin: Source?,
+    stdout: Sink?,
+    stderr: Sink?
+) : NuAbstractProcessHandler() {
+    companion object : KLogging()
+
+    private val inPumper = stdin?.let {
+        InputPumper(
+            pumperPool = context.executorService.value(),
+            input = it,
+            onInputReady = {
+                nuProcess.wantWriteIfPossible()
+            },
+            onInputDone = {
+                nuProcess.wantWriteIfPossible()
+            }
+        )
+    }
+    private val outPumper = stdout?.let {
+        OutputPumper(
+            context.executorService.value(),
+            it
+        )
+    }
+    private val errPumper = stderr?.let {
+        OutputPumper(
+            context.executorService.value(),
+            it
+        )
+    }
+
+    lateinit var nuProcess: NuProcess
+    override fun onStart(nuProcess: NuProcess) {
+        logger.trace { "Start" }
+        this.nuProcess = nuProcess
+        if(inPumper != null){
+            nuProcess.wantWriteIfPossible()
+            inPumper.startPump()
+        }
+    }
+
+    @Volatile private var waitingInput : Buffer? = null
+    override fun onStdinReady(buffer: ByteBuffer): Boolean {
+        val waiting = waitingInput ?: inPumper?.read()
+        val ret = if(waiting == null){
+            logger.trace { "Closing stdin" }
+            nuProcess.closeStdin(false)
+            false
+        } else {
+            waitingInput = waiting
+            if(waiting.size == 0L){
+                logger.trace { "Input not ready" }
+                waitingInput = null
+                false
+            } else {
+                val readCount = waiting.read(buffer)
+                if(waiting.size == 0L){
+                    waitingInput = null
+                }
+                logger.trace { "Write $readCount to stdin" }
+                true
+            }
+        }
+        buffer.flip()
+        return ret
+    }
+
+    override fun onStderr(buffer: ByteBuffer, closed: Boolean) {
+        logger.trace { "Stderr received ${buffer.remaining()} bytes ($closed)" }
+        errPumper?.write(buffer, closed)
+        if(closed){
+            errPumper?.close()
+        }
+    }
+    override fun onStdout(buffer: ByteBuffer, closed: Boolean) {
+        logger.trace { "Stdout received ${buffer.remaining()} bytes ($closed)" }
+        outPumper?.write(buffer, closed)
+        if(closed){
+            outPumper?.close()
+        }
+    }
+
+    val exitCode = CompletableFuture<Int>()
+    override fun onExit(exitCode: Int) {
+        logger.trace { "Exiting with code $exitCode" }
+        inPumper?.close()
+        outPumper?.close()
+        errPumper?.close()
+        this.exitCode.complete(exitCode)
+    }
+}
+
+private fun NuProcess.wantWriteIfPossible(){
+    try {
+        wantWrite()
+    } catch(t : IllegalStateException){
+        /* ignored */
+    }
+}
