@@ -23,18 +23,20 @@ internal fun readmeExample(){
         //From here we can change the working directory without affecting the default configuration
         workingDirectory = Files.createTempDirectory("shellin")
 
-        //Commands will fail by default if give a nonzero exit code
+        //Commands will fail by default if the program returns a nonzero exit code
         try {
             command("sleep --badflags").waitFor()
         } catch(t : InvalidExitCodeException){
             println("Uh oh, $t")
         }
 
-        command("echo"){
+        val launched = command("echo"){
             +"You can add arguments and other configuration for a command in a block like this"
             //This discards stderr, for example
             stderr = null
         }
+        //Notice that we haven't waited on the last command yet, so it could still be starting or running.
+        launched.waitFor()
 
         //It's also easy to collect output:
         collectStdout {
@@ -50,5 +52,17 @@ internal fun readmeExample(){
 
         //There's also a helper function for bash scripts:
         bash("echo foo >> test.txt; cat test.txt; rm test.txt")
+    }
+    shell.new {
+        //Shellin provides utilities for transforming program output into logs
+        logStdout { process ->
+            val programName = "program.${process.arguments[0]}"
+            { line : CharSequence -> println("$programName: INFO: $line") }
+        }
+        logStderr { process ->
+            val programName = "program.${process.arguments[0]}"
+            { line : CharSequence -> println("$programName: ERROR: $line") }
+        }
+        bash("echo First; echo Second; echo Third 1>&2;").waitFor()
     }
 }
