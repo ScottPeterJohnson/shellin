@@ -32,11 +32,6 @@ data class ShellinProcessConfiguration internal constructor(
     }
 
     /**
-     * Whether the child process will be killed as part of a shutdown hook when the VM exits
-     */
-    var exitWithJava = true
-
-    /**
      * A list of exit values that will not throw an exception
      */
     var exitValues = listOf(0)

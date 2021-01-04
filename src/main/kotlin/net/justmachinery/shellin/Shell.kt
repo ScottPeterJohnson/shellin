@@ -1,6 +1,8 @@
 package net.justmachinery.shellin
 
 import mu.KLogging
+import net.justmachinery.shellin.exec.ProcessStopper
+import net.justmachinery.shellin.exec.ShellinProcess
 import net.justmachinery.shellin.exec.defaultThreadPool
 import okio.Sink
 import okio.sink
@@ -12,13 +14,23 @@ import kotlin.reflect.KProperty
 @ShellinDsl
 interface ShellinReadonly {
     val workingDirectory : Path
-    //Whether to log each command before its execution
+    /**
+     * Whether to log each command before its execution
+     */
     val logCommands : Boolean
-    //Default location for stdout
+
     val defaultStdout : ShellinSinkProducer
     val defaultStderr : ShellinSinkProducer
-    //Used to start threads to copy data from pipes
+
+    /**
+     * Used to start threads to copy data from pipes
+     */
     val executorService : ExecutorService
+
+    /**
+     * Action to perform (if any) to clean up launched processes. By default, this is a JVM shutdown hook.
+     */
+    val shutdownHandler : ShellinShutdownHandler
 
     fun <T> new(cb : ShellinWriteable.()->T) : T {
         val copy = ShellinImpl(this)
@@ -33,6 +45,7 @@ interface ShellinWriteable : ShellinReadonly {
     override var defaultStdout : ShellinSinkProducer
     override var defaultStderr : ShellinSinkProducer
     override var executorService : ExecutorService
+    override val shutdownHandler: ShellinShutdownHandler
     fun workingDirectory(dir : String) { workingDirectory = Paths.get(dir) }
 }
 
@@ -46,15 +59,28 @@ private class ShellinImpl(private val parent : ShellinReadonly?) : ShellinWritea
     companion object : KLogging()
 
     override var workingDirectory by ShellinConfig<Path> { parent?.workingDirectory ?: Paths.get(".").toAbsolutePath() }
-    override var logCommands by ShellinConfig { true }
-    override var defaultStdout by ShellinConfig<ShellinSinkProducer> { {  NoCloseOutputStream(System.out).sink() } }
-    override var defaultStderr by ShellinConfig<ShellinSinkProducer> { { NoCloseOutputStream(System.err).sink() } }
-    override var executorService by ShellinConfig { defaultThreadPool }
-
-    fun env(name : String) : String? = System.getenv(name)
-    fun userHome() : String = System.getProperty("user.home")
+    override var logCommands by ShellinConfig { parent?.logCommands ?: true }
+    override var defaultStdout by ShellinConfig { parent?.defaultStdout ?: {  NoCloseOutputStream(System.out).sink() } }
+    override var defaultStderr by ShellinConfig { parent?.defaultStderr ?: { NoCloseOutputStream(System.err).sink() } }
+    override var executorService by ShellinConfig { parent?.executorService ?: defaultThreadPool }
+    override var shutdownHandler by ShellinConfig { parent?.shutdownHandler ?: ShellinShutdownHandler.JvmShutdownHook }
 }
 
+/**
+ * Handler for stopping processes- e.g. on JVM shutdown.
+ */
+interface ShellinShutdownHandler {
+    fun add(process : ShellinProcess)
+    fun remove(process : ShellinProcess)
+
+    companion object {
+        object None : ShellinShutdownHandler {
+            override fun add(process: ShellinProcess) {}
+            override fun remove(process: ShellinProcess) {}
+        }
+        val JvmShutdownHook : ShellinShutdownHandler by lazy { ProcessStopper() }
+    }
+}
 typealias ShellinSinkProducer = (ShellinProcessConfiguration)->Sink?
 
 

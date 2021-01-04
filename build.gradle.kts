@@ -7,12 +7,12 @@ import java.net.URI
 plugins {
 	maven
 	`maven-publish`
-	kotlin("jvm").version("1.3.72")
+	kotlin("jvm").version("1.4.21")
 	id("com.jfrog.bintray").version("1.8.4")
 }
 group = "net.justmachinery.shellin"
 description = "Shell scripting utilities for Kotlin"
-version = "0.2.2"
+version = "0.2.3"
 
 repositories {
 	mavenCentral()
