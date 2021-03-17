@@ -1,66 +1,88 @@
-import com.jfrog.bintray.gradle.BintrayExtension
-import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
-import java.util.Date
 import java.net.URI
 
 
 plugins {
 	maven
 	`maven-publish`
-	kotlin("jvm").version("1.4.21")
-	id("com.jfrog.bintray").version("1.8.4")
+	signing
+	kotlin("jvm").version("1.4.31")
 }
 group = "net.justmachinery.shellin"
 description = "Shell scripting utilities for Kotlin"
-version = "0.2.3"
+version = "0.2.4"
 
 repositories {
 	mavenCentral()
 	jcenter()
-	maven { url = URI("https://dl.bintray.com/scottpjohnson/generic/") }
 }
 
 
-tasks {
-	val sourcesJar by registering(Jar::class){
-		classifier = "sources"
-		from(sourceSets.main.get().allSource)
-	}
+val sourcesJar by tasks.registering(Jar::class){
+	archiveClassifier.set("sources")
+	from(sourceSets.main.get().allSource)
+}
+val javadocJar by tasks.registering(Jar::class){
+	dependsOn.add(JavaPlugin.JAVADOC_TASK_NAME)
+	archiveClassifier.set("javadoc")
+	from(tasks.getByName("javadoc"))
+}
+
+artifacts {
+	archives(sourcesJar)
+	archives(javadocJar)
 }
 
 publishing {
 	(publications) {
 		create<MavenPublication>("shellin") {
-			from(components["java"])
+			from(components["kotlin"])
 			groupId = "net.justmachinery.shellin"
-			artifactId = name
+			artifactId = "shellin"
 			version = project.version as String?
-			artifact(tasks.getByName("sourcesJar"))
+			pom {
+				name.set("Shellin")
+				description.set("Shell scripting utilities for Kotlin")
+				url.set("https://github.com/ScottPeterJohnson/shellin")
+				licenses {
+					license {
+						name.set("The Apache License, Version 2.0")
+						url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+					}
+				}
+				developers {
+					developer {
+						id.set("scottj")
+						name.set("Scott Johnson")
+						email.set("mavenshellin@justmachinery.net")
+					}
+				}
+				scm {
+					connection.set("scm:git:git://github.com/ScottPeterJohnson/shellin.git")
+					developerConnection.set("scm:git:ssh://github.com/ScottPeterJohnson/shellin.git")
+					url.set("http://github.com/ScottPeterJohnson/shellin")
+				}
+			}
+			artifact(sourcesJar)
+			artifact(javadocJar)
 		}
 	}
-}
-
-bintray {
-	user = project.property("BINTRAY_USER") as String?
-	key = project.property("BINTRAY_KEY") as String?
-	publish = true
-
-	val pkgOps = closureOf<BintrayExtension.PackageConfig> {
-		repo = "generic"
-		name = "shellin"
-		vcsUrl = "https://github.com/ScottPeterJohnson/shellin.git"
-		version(closureOf<BintrayExtension.VersionConfig> {
-			name = project.version as String?
-			desc = "$project.name version $project.version"
-			released = Date().toString()
-			vcsTag = "$project.version"
-		})
-		setProperty("licenses", arrayOf("Apache-2.0"))
+	repositories {
+		maven {
+			name = "central"
+			val releasesRepoUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
+			val snapshotsRepoUrl = uri("https://oss.sonatype.org/content/repositories/snapshots/")
+			url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
+			credentials {
+				username = findProperty("ossrhUsername") as? String
+				password = findProperty("ossrhPassword") as? String
+			}
+		}
 	}
-	pkg(pkgOps)
-	this.setProperty("publications", arrayOf("shellin"))
-}
 
+	signing {
+		sign(publishing.publications["shellin"])
+	}
+}
 
 dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")

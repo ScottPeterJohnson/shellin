@@ -9,10 +9,6 @@ of threads.
 ### Install
 Add the following to your build.gradle where appropriate:
 ```groovy
-repositories {
-    jcenter()
-    maven { url 'https://dl.bintray.com/scottpjohnson/generic/' }
-}
 
 dependencies {
     compile 'net.justmachinery.shellin:shellin:<VERSION>'
