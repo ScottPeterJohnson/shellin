@@ -13,7 +13,7 @@ import org.codehaus.plexus.util.cli.CommandLineUtils
  *  Don't try to pass "--flag value" for instance; pass "--flag", "value".
  * @param cb Builder DSL for specifying extra options.
  */
-fun ShellinReadonly.command(
+public fun ShellinReadonly.command(
     command : String,
     vararg extraArguments : String,
     cb : (ShellinProcessConfiguration.()->Unit)? = null
@@ -33,7 +33,7 @@ fun ShellinReadonly.command(
 /**
  * Run a program by name.
  */
-fun ShellinReadonly.program(name : String, cb : (ShellinProcessConfiguration.()->Unit)? = null) : ShellinProcess {
+public fun ShellinReadonly.program(name : String, cb : (ShellinProcessConfiguration.()->Unit)? = null) : ShellinProcess {
     val builder = ShellinProcessConfiguration(this)
     builder.argument(name)
     if(cb != null) {
@@ -48,7 +48,7 @@ fun ShellinReadonly.program(name : String, cb : (ShellinProcessConfiguration.()-
  * @param saneErrorHandling See https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
  * @param cb The same builder as "command". Any arguments will be passed as arguments to the bash script.
  */
-fun ShellinReadonly.bash(
+public fun ShellinReadonly.bash(
     script : String,
     saneErrorHandling : Boolean = true,
     printCommands : Boolean = false,

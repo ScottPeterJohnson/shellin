@@ -4,12 +4,16 @@ import com.zaxxer.nuprocess.NuProcessBuilder
 import net.justmachinery.shellin.Shellin
 import net.justmachinery.shellin.ShellinProcessConfiguration
 
+private val nuProcessNoShutdownHook = lazy { //Disable the default shutdown hook included in nuprocess
+    System.setProperty("com.zaxxer.nuprocess.enableShutdownHook", "false")
+}
 
 internal fun ShellinProcessConfiguration.start() : ShellinProcess {
     if(context.logCommands){
         Shellin.logger.debug { this.toString() }
     }
 
+    nuProcessNoShutdownHook.value
     val override = overrideEnvironmentVariables
     val process = if(override != null) NuProcessBuilder(arguments, override) else NuProcessBuilder(arguments)
 

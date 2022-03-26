@@ -1,19 +1,25 @@
-import java.net.URI
-
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-	maven
 	`maven-publish`
 	signing
-	kotlin("jvm").version("1.4.31")
+	kotlin("jvm").version("1.6.10")
+	id("com.github.ben-manes.versions").version("0.42.0")  //For finding outdated dependencies
 }
 group = "net.justmachinery.shellin"
 description = "Shell scripting utilities for Kotlin"
-version = "0.2.4"
+version = "0.2.5"
 
 repositories {
 	mavenCentral()
-	jcenter()
+}
+
+kotlin {
+	explicitApi()
+}
+tasks.withType<KotlinCompile> {
+	kotlinOptions.jvmTarget = JavaVersion.VERSION_11.toString()
+	kotlinOptions.freeCompilerArgs = kotlinOptions.freeCompilerArgs + "-Xjvm-default=enable"
 }
 
 
@@ -86,19 +92,22 @@ publishing {
 
 dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-	implementation(group = "io.github.microutils", name = "kotlin-logging", version = "1.7.10")
-	api("com.squareup.okio:okio:2.2.2")
-	implementation("com.zaxxer:nuprocess:2.0.0")
-	implementation("org.codehaus.plexus:plexus-utils:3.3.0")
+	implementation(group = "io.github.microutils", name = "kotlin-logging", version = "2.1.21")
+	api("com.squareup.okio:okio:3.0.0")
+	implementation("com.zaxxer:nuprocess:2.0.2")
+	implementation("org.codehaus.plexus:plexus-utils:3.4.1")
+	implementation("net.justmachinery.futility:futility-core:1.0.3")
 
+	val kotestVersion = "5.1.0"
+	testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
+	testImplementation("io.kotest:kotest-property:$kotestVersion")
 
 	testImplementation(group= "ch.qos.logback", name= "logback-classic", version= "1.2.3")
 	testImplementation(group= "ch.qos.logback", name= "logback-core", version= "1.2.3")
-	testImplementation("org.slf4j:slf4j-api:1.7.25")
-	testImplementation("org.slf4j:jcl-over-slf4j:1.7.25")
-	testImplementation("io.kotlintest:kotlintest-runner-junit5:3.1.8")
-	testImplementation("org.junit.jupiter:junit-jupiter-api:5.3.1")
-	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.3.1")
-	testImplementation("org.awaitility:awaitility:4.0.3")
+	testImplementation("org.slf4j:slf4j-api:1.7.36")
+	testImplementation("org.slf4j:jcl-over-slf4j:1.7.36")
+	testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
+	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.2")
+	testImplementation("org.awaitility:awaitility:4.2.0")
 
 }

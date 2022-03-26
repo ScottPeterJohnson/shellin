@@ -7,9 +7,9 @@ import okio.Timeout
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 
-typealias LineLogger = (CharSequence)->Unit
-typealias LoggerProducer = (ShellinProcessConfiguration) -> LineLogger
-fun ShellinWriteable.logStdout(
+public typealias LineLogger = (CharSequence)->Unit
+public typealias LoggerProducer = (ShellinProcessConfiguration) -> LineLogger
+public fun ShellinWriteable.logStdout(
     doLog : LoggerProducer
 ){
     defaultStdout = {
@@ -20,7 +20,7 @@ fun ShellinWriteable.logStdout(
     }
 }
 
-fun ShellinWriteable.logStderr(
+public fun ShellinWriteable.logStderr(
     doLog : LoggerProducer
 ){
     defaultStderr = {
@@ -31,7 +31,7 @@ fun ShellinWriteable.logStderr(
     }
 }
 
-fun ShellinProcessConfiguration.logStdout(
+public fun ShellinProcessConfiguration.logStdout(
     doLog : LineLogger
 ){
     stdout = (
@@ -41,7 +41,7 @@ fun ShellinProcessConfiguration.logStdout(
     )
 }
 
-fun ShellinProcessConfiguration.logStderr(
+public fun ShellinProcessConfiguration.logStderr(
     doLog : LineLogger
 ){
     stderr = (
@@ -51,10 +51,10 @@ fun ShellinProcessConfiguration.logStderr(
     )
 }
 
-class NewlineDelimiterSink(
+public class NewlineDelimiterSink(
     private val onLine : (CharSequence)->Unit
 ) : Sink {
-    companion object : KLogging()
+    public companion object : KLogging()
 
     override fun close() {
         logger.trace { "Closing" }
@@ -63,7 +63,7 @@ class NewlineDelimiterSink(
 
     override fun flush() {}
 
-    override fun timeout() = Timeout.NONE
+    override fun timeout() : Timeout = Timeout.NONE
 
     private val decoder = Charsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.IGNORE)

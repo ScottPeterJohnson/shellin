@@ -1,6 +1,6 @@
 package net.justmachinery.shellin
 
-import io.kotlintest.shouldBe
+import io.kotest.matchers.shouldBe
 import net.justmachinery.shellin.exec.InvalidExitCodeException
 import java.nio.file.Files
 

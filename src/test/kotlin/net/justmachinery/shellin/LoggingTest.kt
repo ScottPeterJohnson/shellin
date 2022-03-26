@@ -1,7 +1,7 @@
 package net.justmachinery.shellin
 
-import io.kotlintest.shouldBe
-import io.kotlintest.specs.StringSpec
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
 import org.awaitility.Awaitility
 import org.hamcrest.core.IsEqual
 import java.nio.ByteBuffer
@@ -28,13 +28,13 @@ class LoggingTest : StringSpec() {
             repeat(100) {
                 val bits = Random.nextBytes(Random.nextInt(125_000))
                 bits.forEachIndexed {index, byte ->
-                    if(byte == '\n'.toByte()){
-                        bits[index] = ' '.toByte()
+                    if(byte == '\n'.code.toByte()){
+                        bits[index] = ' '.code.toByte()
                     }
                 }
                 //Add a few newlines
                 repeat(Random.nextInt(4)){
-                    bits[Random.nextInt(bits.size)] = '\n'.toByte()
+                    bits[Random.nextInt(bits.size)] = '\n'.code.toByte()
                 }
 
                 val logs = Collections.synchronizedList(mutableListOf<String>())

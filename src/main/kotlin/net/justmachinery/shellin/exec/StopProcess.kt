@@ -1,14 +1,16 @@
 package net.justmachinery.shellin.exec
 
 import mu.KLogging
+import net.justmachinery.futility.execution.ShutdownHookPriority
+import net.justmachinery.futility.execution.addJvmShutdownHook
 import net.justmachinery.shellin.Shellin
 import net.justmachinery.shellin.ShellinShutdownHandler
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class ProcessStopper : ShellinShutdownHandler {
-    companion object : KLogging()
+public class ShellinProcessStopper(priority : ShutdownHookPriority = ShutdownHookPriority(0.0)) : ShellinShutdownHandler {
+    public companion object : KLogging()
     init {
-        Runtime.getRuntime().addShutdownHook(Thread { stop() })
+        addJvmShutdownHook(priority) { stop() }
     }
     private val stopping = AtomicBoolean(false)
     private val runningProcesses = mutableSetOf<ShellinProcess>()
@@ -37,6 +39,7 @@ internal class ProcessStopper : ShellinShutdownHandler {
                 logger.debug { "Destroy process ${it.pid}" }
                 it.destroy(false)
             }
+
         }
     }
 }

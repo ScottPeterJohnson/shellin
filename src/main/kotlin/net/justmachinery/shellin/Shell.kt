@@ -1,7 +1,8 @@
 package net.justmachinery.shellin
 
+import NoCloseOutputStream
 import mu.KLogging
-import net.justmachinery.shellin.exec.ProcessStopper
+import net.justmachinery.shellin.exec.ShellinProcessStopper
 import net.justmachinery.shellin.exec.ShellinProcess
 import net.justmachinery.shellin.exec.defaultThreadPool
 import okio.Sink
@@ -12,44 +13,44 @@ import java.util.concurrent.ExecutorService
 import kotlin.reflect.KProperty
 
 @ShellinDsl
-interface ShellinReadonly {
-    val workingDirectory : Path
+public interface ShellinReadonly {
+    public val workingDirectory : Path
     /**
      * Whether to log each command before its execution
      */
-    val logCommands : Boolean
+    public val logCommands : Boolean
 
-    val defaultStdout : ShellinSinkProducer
-    val defaultStderr : ShellinSinkProducer
+    public val defaultStdout : ShellinSinkProducer
+    public val defaultStderr : ShellinSinkProducer
 
     /**
      * Used to start threads to copy data from pipes
      */
-    val executorService : ExecutorService
+    public val executorService : ExecutorService
 
     /**
      * Action to perform (if any) to clean up launched processes. By default, this is a JVM shutdown hook.
      */
-    val shutdownHandler : ShellinShutdownHandler
+    public val shutdownHandler : ShellinShutdownHandler
 
-    fun <T> new(cb : ShellinWriteable.()->T) : T {
+    public fun <T> new(cb : ShellinWriteable.()->T) : T {
         val copy = ShellinImpl(this)
         return cb(copy)
     }
 }
 
 @ShellinDsl
-interface ShellinWriteable : ShellinReadonly {
+public interface ShellinWriteable : ShellinReadonly {
     override var workingDirectory : Path
     override var logCommands : Boolean
     override var defaultStdout : ShellinSinkProducer
     override var defaultStderr : ShellinSinkProducer
     override var executorService : ExecutorService
     override val shutdownHandler: ShellinShutdownHandler
-    fun workingDirectory(dir : String) { workingDirectory = Paths.get(dir) }
+    public fun workingDirectory(dir : String) { workingDirectory = Paths.get(dir) }
 }
 
-fun shellin(configure : ShellinWriteable.()->Unit) : ShellinReadonly {
+public fun shellin(configure : ShellinWriteable.()->Unit) : ShellinReadonly {
     val impl = ShellinImpl(null)
     configure(impl)
     return impl
@@ -69,19 +70,19 @@ private class ShellinImpl(private val parent : ShellinReadonly?) : ShellinWritea
 /**
  * Handler for stopping processes- e.g. on JVM shutdown.
  */
-interface ShellinShutdownHandler {
-    fun add(process : ShellinProcess)
-    fun remove(process : ShellinProcess)
+public interface ShellinShutdownHandler {
+    public fun add(process : ShellinProcess)
+    public fun remove(process : ShellinProcess)
 
-    companion object {
-        object None : ShellinShutdownHandler {
+    public companion object {
+        public object None : ShellinShutdownHandler {
             override fun add(process: ShellinProcess) {}
             override fun remove(process: ShellinProcess) {}
         }
-        val JvmShutdownHook : ShellinShutdownHandler by lazy { ProcessStopper() }
+        public val JvmShutdownHook : ShellinShutdownHandler by lazy { ShellinProcessStopper() }
     }
 }
-typealias ShellinSinkProducer = (ShellinProcessConfiguration)->Sink?
+public typealias ShellinSinkProducer = (ShellinProcessConfiguration)->Sink?
 
 
 internal data class ShellinConfig<T>(val default : ()->T){
@@ -100,4 +101,4 @@ internal data class ShellinConfig<T>(val default : ()->T){
 }
 
 @DslMarker
-annotation class ShellinDsl
+public annotation class ShellinDsl

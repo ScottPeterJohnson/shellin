@@ -1,9 +1,10 @@
 package net.justmachinery.shellin
 
-import io.kotlintest.matchers.boolean.shouldBeTrue
-import io.kotlintest.should
-import io.kotlintest.shouldBe
-import io.kotlintest.specs.StringSpec
+
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
 import net.justmachinery.shellin.exec.InputPumper
 import java.io.InputStream
 import kotlin.random.Random
@@ -25,6 +26,7 @@ class BasicTest : StringSpec() {
                     }.text shouldBe "foo\n"
 
                     val longString = "foo".repeat(Random.nextInt(5000) + 7500)
+                    logCommands = false
                     collectStdout {
                         command("echo", longString)
                     }.text shouldBe "$longString\n"
@@ -46,7 +48,7 @@ class BasicTest : StringSpec() {
                         program("cat"){
                             stdin(bytes.inputStream())
                         }
-                    }.stream.readAllBytes() should { it!!.contentEquals(bytes) }
+                    }.stream.readAllBytes() shouldBe bytes
                 }
             }
         }
@@ -58,6 +60,7 @@ class BasicTest : StringSpec() {
                     }.text shouldBe "foo\n"
 
                     val longString = "foo".repeat(Random.nextInt(5000) + 7500)
+                    logCommands = false
                     collectStderr {
                         bash("echo $1 1>&2"){
                             +"scriptname"
@@ -90,9 +93,9 @@ private class InfiniteStreamOfQLines : InputStream() {
     override fun read(): Int {
         qsRead += 1
         if(qsRead > 0 && qsRead % 100 == 0L){
-            return '\n'.toInt()
+            return '\n'.code
         }
-        return 'Q'.toInt()
+        return 'Q'.code
     }
 }
 
