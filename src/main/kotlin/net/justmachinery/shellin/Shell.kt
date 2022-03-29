@@ -46,7 +46,7 @@ public interface ShellinWriteable : ShellinReadonly {
     override var defaultStdout : ShellinSinkProducer
     override var defaultStderr : ShellinSinkProducer
     override var executorService : ExecutorService
-    override val shutdownHandler: ShellinShutdownHandler
+    override var shutdownHandler: ShellinShutdownHandler
     public fun workingDirectory(dir : String) { workingDirectory = Paths.get(dir) }
 }
 
