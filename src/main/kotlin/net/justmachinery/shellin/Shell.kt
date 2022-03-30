@@ -73,11 +73,13 @@ private class ShellinImpl(private val parent : ShellinReadonly?) : ShellinWritea
 public interface ShellinShutdownHandler {
     public fun add(process : ShellinProcess)
     public fun remove(process : ShellinProcess)
+    public fun isShuttingDown() : Boolean
 
     public companion object {
         public object None : ShellinShutdownHandler {
             override fun add(process: ShellinProcess) {}
             override fun remove(process: ShellinProcess) {}
+            override fun isShuttingDown(): Boolean = false
         }
         public val JvmShutdownHook : ShellinShutdownHandler by lazy { ShellinProcessStopper() }
     }

@@ -8,7 +8,7 @@ plugins {
 }
 group = "net.justmachinery.shellin"
 description = "Shell scripting utilities for Kotlin"
-version = "0.2.6"
+version = "0.2.7"
 
 repositories {
 	mavenCentral()

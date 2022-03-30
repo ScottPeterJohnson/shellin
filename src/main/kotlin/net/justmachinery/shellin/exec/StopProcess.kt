@@ -31,6 +31,8 @@ public class ShellinProcessStopper(priority : ShutdownHookPriority = ShutdownHoo
         }
     }
 
+    override fun isShuttingDown(): Boolean = stopping.get()
+
     private fun stop(){
         synchronized(this){
             logger.debug { "Destroy processes due to VM shutdown" }

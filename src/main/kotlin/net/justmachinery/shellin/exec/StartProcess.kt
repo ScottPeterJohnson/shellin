@@ -9,6 +9,9 @@ private val nuProcessNoShutdownHook = lazy { //Disable the default shutdown hook
 }
 
 internal fun ShellinProcessConfiguration.start() : ShellinProcess {
+    if(context.shutdownHandler.isShuttingDown()){
+        throw IllegalStateException("Cannot start process; shutting down")
+    }
     if(context.logCommands){
         Shellin.logger.debug { this.toString() }
     }
