@@ -9,7 +9,7 @@ import io.kotest.core.config.AbstractProjectConfig
  * Kotlintest finds this object by convention.
  */
 object ProjectConfig : AbstractProjectConfig() {
-    override fun beforeAll() {
+    override suspend fun beforeProject() {
         val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
         loggerContext.getLogger("net.justmachinery").level = Level.TRACE
     }

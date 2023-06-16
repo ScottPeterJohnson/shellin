@@ -1,6 +1,6 @@
 package net.justmachinery.shellin
 
-import NoCloseOutputStream
+import net.justmachinery.futility.streams.NoCloseOutputStream
 import mu.KLogging
 import net.justmachinery.shellin.exec.ShellinProcessStopper
 import net.justmachinery.shellin.exec.ShellinProcess

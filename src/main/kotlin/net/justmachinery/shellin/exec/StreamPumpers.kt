@@ -1,17 +1,15 @@
 package net.justmachinery.shellin.exec
 
 import mu.KLogging
+import net.justmachinery.futility.bytes.KiB
+import net.justmachinery.futility.bytes.MiB
 import net.justmachinery.shellin.AsyncSingleConcurrentExecution
-import okio.Buffer
-import okio.Pipe
-import okio.Sink
-import okio.Source
+import okio.*
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.min
 
 /**
  * A thread-efficient output pumper which will run on the executor pool only when it has
@@ -20,39 +18,34 @@ import kotlin.math.min
 internal class OutputPumper(
     pumperPool : ExecutorService,
     private val output : Sink,
-    private val bufferSize : Long = 131_072
 ) : Closeable {
     companion object : KLogging()
-    //The OKIO pipe's limit blocks when reached, so we can't use it.
-    private val pipe = Pipe(Long.MAX_VALUE)
-    private val usedBytes = AtomicLong()
+    //Since nuprocess has no backpressure, we need to be very generous about taking input from it-
+    //but if the output can't be pumped fast enough, we do have to stop at some point.
+    private val pipe = Pipe(20L.MiB)
+    private val availableBytes = AtomicLong()
 
     /**
-     * Attempts to write from input into buffer. May not use all of input if pipe is full.
+     * Attempts to write from input into buffer. May block if pipe is full.
      */
-    fun write(input : ByteBuffer, closing : Boolean){
+    fun write(input : ByteBuffer){
         if(done.get()) {
             throw IllegalStateException("Pumper was closed")
         }
-        val writeAmount = if(closing) input.remaining() else min(input.remaining(), (bufferSize - usedBytes.get()).toInt())
-        if(writeAmount > 0){
-            val buf = Buffer()
-            val end = input.position() + writeAmount
-            val written = buf.write(input.slice().limit(end))
-            input.position(end)
-            pipe.sink.write(buf, buf.size)
-            synchronized(this){
-                usedBytes.addAndGet(written.toLong())
-            }
-            logger.trace { "Received ${written} bytes" }
-            pump.run()
+        val buf = Buffer()
+        val written = buf.write(input)
+        synchronized(this){
+            availableBytes.addAndGet(written.toLong())
         }
+        pump.run()
+        pipe.sink.write(buf, buf.size)
+        logger.trace { "Received ${written} bytes" }
     }
 
     private val pump = AsyncSingleConcurrentExecution(pumperPool) {
         while(true){
-            val hadBytes = synchronized(this){
-                val bytes = usedBytes.get()
+            val haveBytes = synchronized(this){
+                val bytes = availableBytes.get()
                 when {
                     bytes > 0 -> bytes
                     done.get() -> {
@@ -61,24 +54,27 @@ internal class OutputPumper(
                     else -> 0L
                 }
             }
-            if(hadBytes > 0){
+            if(haveBytes > 0){
                 val buf = Buffer()
-                val bytesRead = pipe.source.read(buf, hadBytes)
+                val bytesRead = pipe.source.read(buf, haveBytes)
                 output.write(buf, bytesRead)
                 synchronized(this){
-                    usedBytes.addAndGet(-1 * bytesRead)
+                    availableBytes.addAndGet(-1 * bytesRead)
                 }
                 logger.trace { "Wrote $bytesRead bytes" }
                 continue
-            } else if (hadBytes == -1L){
-                logger.trace { "Closing output" }
-                output.close()
+            } else if (haveBytes == -1L){
+                if(!closed.getAndSet(true)){
+                    logger.trace { "Closing output" }
+                    output.close()
+                }
             }
             break
         }
     }
 
     private val done = AtomicBoolean(false)
+    private val closed = AtomicBoolean(false)
 
     override fun close() {
         logger.trace { "Was closed" }
@@ -100,7 +96,7 @@ internal class InputPumper(
     private val bufferSize : Long = DEFAULT_BUFFER_SIZE
 ) : Closeable {
     companion object : KLogging() {
-        const val DEFAULT_BUFFER_SIZE = 131_072L
+        val DEFAULT_BUFFER_SIZE = 256L.KiB
     }
     private val pipe = Pipe(Long.MAX_VALUE)
     private val usedBytes = AtomicLong()
@@ -113,16 +109,14 @@ internal class InputPumper(
     private val pump = AsyncSingleConcurrentExecution(pumperPool) {
         while(true){
             if(doneWithInput.get()){
-                if(!closedInput.get()){
-                    closedInput.set(true)
+                if(!closedInput.getAndSet(true)){
                     logger.trace { "Closing input" }
                     input.close()
                     pipe.sink.close()
                     onInputDone()
                 }
-                if(doneWithOutput.get() && !closedOutput.get()){
+                if(doneWithOutput.get() && !closedOutput.getAndSet(true)){
                     logger.trace { "Closing output" }
-                    closedOutput.set(true)
                     pipe.source.close()
                 }
                 break
@@ -140,6 +134,8 @@ internal class InputPumper(
                         doneWithInput.set(true)
                     }
                     continue
+                } else {
+                    break
                 }
             }
         }

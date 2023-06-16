@@ -26,15 +26,16 @@ class LoggingTest : StringSpec() {
         }
         "crazy binary logging" {
             repeat(100) {
-                val bits = Random.nextBytes(Random.nextInt(125_000))
+                val random = Random(it)
+                val bits = random.nextBytes(random.nextInt(256_000))
                 bits.forEachIndexed {index, byte ->
                     if(byte == '\n'.code.toByte()){
                         bits[index] = ' '.code.toByte()
                     }
                 }
                 //Add a few newlines
-                repeat(Random.nextInt(4)){
-                    bits[Random.nextInt(bits.size)] = '\n'.code.toByte()
+                repeat(random.nextInt(24)){
+                    bits[random.nextInt(bits.size)] = '\n'.code.toByte()
                 }
 
                 val logs = Collections.synchronizedList(mutableListOf<String>())

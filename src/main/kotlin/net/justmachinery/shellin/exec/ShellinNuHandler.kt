@@ -85,16 +85,24 @@ internal class ShellinNuHandler(
 
     override fun onStderr(buffer: ByteBuffer, closed: Boolean) {
         logger.trace { "Stderr received ${buffer.remaining()} bytes ($closed)" }
-        errPumper?.write(buffer, closed)
-        if(closed){
-            errPumper?.close()
+        if(errPumper != null){
+            errPumper.write(buffer)
+            if(closed){
+                errPumper.close()
+            }
+        } else {
+            buffer.position(buffer.limit())
         }
     }
     override fun onStdout(buffer: ByteBuffer, closed: Boolean) {
         logger.trace { "Stdout received ${buffer.remaining()} bytes ($closed)" }
-        outPumper?.write(buffer, closed)
-        if(closed){
-            outPumper?.close()
+        if(outPumper != null){
+            outPumper.write(buffer)
+            if(closed){
+                outPumper.close()
+            }
+        } else {
+            buffer.position(buffer.limit())
         }
     }
 

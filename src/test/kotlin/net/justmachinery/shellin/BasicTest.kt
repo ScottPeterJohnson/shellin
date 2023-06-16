@@ -3,8 +3,10 @@ package net.justmachinery.shellin
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.should
+import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
+import net.justmachinery.futility.bytes.KiB
 import net.justmachinery.shellin.exec.InputPumper
 import java.io.InputStream
 import kotlin.random.Random
@@ -72,14 +74,16 @@ class BasicTest : StringSpec() {
         }
         "thou shalt not read all stdin at once" {
             shell.new {
-                val qs = InfiniteStreamOfQLines()
-                val proc = bash("sleep 1; read; sleep 1"){
+                val qs = InfiniteStreamOfQ()
+                val proc = bash("sleep 1; read -N${256.KiB}; sleep 1"){
                     stdin(qs)
                 }
                 Thread.sleep(500)
-                qs.qsRead should { it == InputPumper.DEFAULT_BUFFER_SIZE }
+                val totalBuffered = qs.qsRead
+                //Note that linux buffers stdin a bit itself
+                totalBuffered shouldBeLessThan (InputPumper.DEFAULT_BUFFER_SIZE + 128.KiB)
                 proc.waitFor()
-                qs.qsRead should { it == InputPumper.DEFAULT_BUFFER_SIZE + 100 }
+                qs.qsRead shouldBe (totalBuffered + 256.KiB)
             }
         }
         "example code should work probably" {
@@ -88,13 +92,10 @@ class BasicTest : StringSpec() {
     }
 }
 
-private class InfiniteStreamOfQLines : InputStream() {
+private class InfiniteStreamOfQ : InputStream() {
     var qsRead = 0L
     override fun read(): Int {
         qsRead += 1
-        if(qsRead > 0 && qsRead % 100 == 0L){
-            return '\n'.code
-        }
         return 'Q'.code
     }
 }
